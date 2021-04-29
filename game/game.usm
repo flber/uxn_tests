@@ -116,7 +116,7 @@ RTN
 		( incr ) SWP2 #0008 ADD2 SWP2
 		OVR2 OVR2 LTH2 ,&ver JNZ
 	POP2 POP2
-	( destroy ) POP2r
+	( destroy ) POPr
 	
 JMP2r
 
