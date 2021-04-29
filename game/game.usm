@@ -1,0 +1,143 @@
+( game )
+
+%RTN { JMP2r }
+%8+ { #0008 ADD2 }
+%8/ { #0008 DIV2 }
+%2/ { #0002 DIV2 }
+%2* { #0002 MUL2 }
+%++ { #0001 ADD2 }
+%TOS { #00 SWP }
+%MOD { DUP2 DIV MUL SUB }
+
+( devices )
+
+|00 @System     [ &vector $2 &pad    $6 &r      $2 &g     $2 &b      $2 ]
+|20 @Screen     [ &vector $2 &width  $2 &height $2 &pad   $2 &x      $2 &y $2 &addr $2 &color $1 ]
+|40 @Controller [ &vector $2 &button $1 &key    $1 ]
+|90 @Mouse      [ &vector $2 &x      $2 &y      $2 &state $1 &chord  $1 ]
+
+( variables )
+
+|0000
+
+@pointer     [ &x $2 &y $2 ]
+( an icon is x, y, w, h, icon, color, ... )
+@player      [ &x $2 &y $2 &w $2 &h $2 &icon $2 &color $1 &speed $2 ]
+
+( init )
+
+|0100 ( -> )
+	
+	( theme ) 
+	#0f73 .System/r DEO2 
+	#0fe3 .System/g DEO2 
+	#0fc3 .System/b DEO2
+	
+	( vectors )
+	;on-frame .Screen/vector DEO2
+	;on-mouse .Mouse/vector DEO2
+	
+	( starting values )
+	.Screen/width DEI2 #0002 DIV2 .player/x POK2
+	.Screen/height DEI2 #0002 DIV2 .player/y POK2
+	#0001 .player/speed POK2
+	#0010 .player/w POK2
+	#0030 .player/h POK2
+	;player_icn .player/icon POK2
+	#21 .player/color POK2
+
+	;redraw JSR2
+		
+BRK
+
+@on-frame ( -> )
+	
+	( clear ) .player ;draw-icon JSR2
+	
+	.Controller/key DEI
+	DUP #77 NEQ ,&no-up JNZ
+		.player/y PEK2 .player/speed PEK2 SUB2 .player/y POK2
+	&no-up
+	DUP #61 NEQ ,&no-left JNZ
+		.player/x PEK2 .player/speed PEK2 SUB2 .player/x POK2
+	&no-left
+	DUP #73 NEQ ,&no-down JNZ
+		.player/y PEK2 .player/speed PEK2 ADD2 .player/y POK2
+	&no-down
+	DUP #64 NEQ ,&no-right JNZ
+		.player/x PEK2 .player/speed PEK2 ADD2 .player/x POK2
+	&no-right
+	POP
+
+	( draw ) .player ;draw-icon JSR2
+	
+BRK
+
+@on-mouse ( -> )
+
+	;draw-cursor JSR2 
+
+BRK
+
+@draw-cursor ( -- )
+	
+	( clear last cursor )
+	;clear .Screen/addr DEO2 
+	.pointer/x PEK2 .Screen/x DEO2 
+	.pointer/y PEK2 .Screen/y DEO2 
+	#30 .Screen/color DEO
+	( record pointer positions )
+	.Mouse/x DEI2 .pointer/x POK2 
+	.Mouse/y DEI2 .pointer/y POK2
+	( draw new cursor )
+	;cursor .Screen/addr DEO2 
+	.pointer/x PEK2 .Screen/x DEO2 
+	.pointer/y PEK2 .Screen/y DEO2 
+	( colorize on state )
+	#31 [ .Mouse/state DEI #00 NEQ ] ADD .Screen/color DEO
+
+RTN
+
+@draw-icon ( icon* -- )
+
+	( stash ) STH 
+	( icon ) DUPr STHr #08 ADD PEK2 .Screen/addr DEO2
+	( y ) DUPr STHr #02 ADD PEK2 [ DUPr STHr #02 ADD PEK2 ( h ) DUPr STHr #06 ADD PEK2 ADD2 ]
+	&ver
+		OVR2 .Screen/y DEO2
+		( x ) DUPr STHr PEK2 [ DUPr STHr PEK2 DUPr STHr #04 ADD PEK2 ADD2 ]
+		&hor
+			OVR2 .Screen/x DEO2
+			( draw ) ( color ) DUPr STHr #10 ADD PEK2 .Screen/color DEO
+			( next ) .Screen/addr DEI2 #0008 ADD2 .Screen/addr DEO2
+			( incr ) SWP2 #0008 ADD2 SWP2
+			OVR2 OVR2 LTH2 ,&hor JNZ
+		POP2 POP2
+		( incr ) SWP2 #0008 ADD2 SWP2
+		OVR2 OVR2 LTH2 ,&ver JNZ
+	POP2 POP2
+	( destroy ) POP2r
+	
+JMP2r
+
+@redraw ( -- )
+	
+	.player ;draw-icon JSR2
+
+RTN
+
+@clear  [ 
+	0000 0000 0000 0000 ]
+
+@cursor [ 
+	80c0 e0f0 f8e0 1000 ]
+
+@player_icn [
+	0000 0000 0000 0001
+	0000 0000 0040 40ff
+	0404 0407 070f 0101
+	3f3f 31f1 fefc fcfc
+	0101 0101 0101 0101
+	fc04 0404 0404 0404
+	0000 0000 0000 0000
+	8482 8080 0000 0000 ]
