@@ -1,0 +1,222 @@
+( pong, day 6 )
+
+
+( devices )
+|00 @System  [ &vector $2 &pad      $6  &r $2  &g $2  &b $2 ]
+|20 @Screen  [ &vector $2 &width $2 &height $2 &auto $1 &pad $1 &x $2 &y  $2 &addr $2 &pixel $1 &sprite $1 ]
+|80 @Controller [ &vector $2 &button   $1 &key    $1 ]
+|90 @Mouse [ &vector $2 &x $2 &y $2 &state $1 &wheel $1 ]
+
+
+( macros )
+%RTN { JMP2r }
+%HALF2 { #01 SFT2 } ( short -- short/2 )
+
+%WALL-MARGIN { #0000 }
+%MARGIN { #0000 }
+
+%PADDLE-WIDTH { #0010 }
+%PADDLE-HEIGHT { #0018 }
+%PADDLE-SPEED { #0002 }
+
+%BALL-SIZE { #0010 }
+%BALL-COLOR { #c5 }
+%BALL-POSITIVE-SPEED { #0001 } ( +1 )
+%BALL-NEGATIVE-SPEED { #ffff } ( -1 )
+
+%PADDLE-COLOR { #c5 }
+%CLEAR-COLOR { #40 }
+
+
+( zero page )
+|0000
+	@left [ &x $2 &y $2 ]
+	@right [ &x $2 &y $2 ]
+	@ball [ &x $2 &y $2 &speed-x $2 &speed-y $2 ]
+
+
+( main program )
+|0100
+	( set system colors )
+	#2ce9 .System/r DEO2
+	#01c0 .System/g DEO2
+	#2ce5 .System/b DEO2
+
+	( set screen vector )
+	;on-frame .Screen/vector DEO2
+
+	( set background )
+	;draw-background JSR2
+
+	( initialize paddles )
+	MARGIN .left/x STZ2
+	.Screen/width DEI2
+	MARGIN SUB2 PADDLE-WIDTH SUB2
+	.right/x STZ2
+	.Screen/height DEI2 PADDLE-HEIGHT SUB2 HALF2
+	DUP2
+	.left/y STZ2
+	.right/y STZ2
+
+	( initialize ball )
+	.Screen/width DEI2 BALL-SIZE SUB2
+	HALF2
+	.ball/x STZ2
+	.Screen/height DEI2 BALL-SIZE SUB2
+	HALF2
+	.ball/y STZ2
+	#0000 .ball/speed-x STZ2
+	BALL-NEGATIVE-SPEED .ball/speed-y STZ2
+BRK
+
+
+@on-frame ( -> )
+	( clear sprites )
+	.left/x LDZ2 .left/y LDZ2 #02 #03 CLEAR-COLOR ;paddle ;draw-sprite JSR2
+	.right/x LDZ2 .right/y LDZ2 #02 #03 CLEAR-COLOR ;paddle ;draw-sprite JSR2
+	.ball/x LDZ2 .ball/y LDZ2 #02 #02 CLEAR-COLOR ;ball-sprite ;draw-sprite JSR2
+
+	( update sprites )
+	;update-paddles JSR2
+	;update-ball JSR2
+
+	( draw sprites )
+	.left/x LDZ2 .left/y LDZ2 #02 #03 PADDLE-COLOR ;paddle ;draw-sprite JSR2
+	.right/x LDZ2 .right/y LDZ2 #02 #03 PADDLE-COLOR ;paddle ;draw-sprite JSR2
+	.ball/x LDZ2 .ball/y LDZ2 #02 #02 PADDLE-COLOR ;ball-sprite ;draw-sprite JSR2
+BRK
+
+
+@update-ball ( -- )
+    ( get speed-x and x )
+    .ball/speed-x LDZ2 .ball/x LDZ2 ( get x )
+    ADD2 ( add them together )
+    .ball/x STZ2 ( store new x )
+
+    ( get speed-y and y )
+    .ball/speed-y LDZ2 .ball/y LDZ2 ( get y )
+    ADD2 ( add them together )
+    .ball/y STZ2 ( store new y )
+
+    ( check collisions with walls )
+    &check-top-wall
+        .ball/y LDZ2
+        WALL-MARGIN
+        LTH2 ( is ball-y less than the margin? )
+        ,&set-positive-speed JCN
+        ,&check-bottom-wall JMP
+    
+        &set-positive-speed
+            BALL-POSITIVE-SPEED .ball/speed-y STZ2
+            ,&continue JMP
+    
+    &check-bottom-wall
+        .ball/y LDZ2 BALL-SIZE ADD2 ( y + ball size )
+        .Screen/height DEI2 WALL-MARGIN SUB2 ( height - margin )
+        GTH2
+        ,&set-negative-speed JCN
+        ,&continue JMP
+        
+        &set-negative-speed 
+            BALL-NEGATIVE-SPEED .ball/speed-y STZ2
+     &continue
+RTN
+
+
+@update-paddles ( -- )
+	.Controller/button DEI
+	DUP #10 AND ,&left-up JCN ,&not-left-up JMP ( check bit for up )
+	&left-up
+		.left/y LDZ2 PADDLE-SPEED SUB2 .left/y STZ2 
+	&not-left-up
+	DUP #20 AND ,&left-down JCN ,&not-left-down JMP ( check bit for down )
+	&left-down
+		.left/y LDZ2 PADDLE-SPEED ADD2 .left/y STZ2 
+	&not-left-down
+	DUP #01 AND ,&right-up JCN ,&not-right-up JMP ( check bit for A )
+	&right-up
+		.right/y LDZ2 PADDLE-SPEED SUB2 .right/y STZ2
+	&not-right-up
+	DUP #02 AND ,&right-down JCN ,&not-right-down JMP ( check bit for B )
+	&right-down
+		.right/y LDZ2 PADDLE-SPEED ADD2 .right/y STZ2
+	&not-right-down
+	POP
+RTN
+
+
+@draw-sprite ( x^ y^ w h color addr* -- )
+	#04 .Screen/auto DEO
+	.Screen/addr DEO2					( ws: x^ y^ w h color )
+	,&color STR							( ws: x^ y^ w h )
+	,&h STR								( ws: x^ y^ w )
+	,&w STR								( ws: x^ y^ )
+	.Screen/y DEO2						( ws: x^ )
+	.Screen/x DEO2						( ws: )
+	#00 ,&cx STR
+	#00 ,&cy STR
+	&loop-y
+		#00 ,&cx STR
+		&loop-x
+			,&color LDR .Screen/sprite DEO
+			.Screen/x DEI2 #0008 ADD2 .Screen/x DEO2
+			,&w LDR						( ws: w )
+			,&cx LDR INC DUP ,&cx STR	( ws: w cx )
+			GTHk						( ws: w cx res )
+			ROT ROT POP2				( ws: res )
+			,&loop-x JCN				( ws: )
+		.Screen/x DEI2 #00 ,&w LDR #30 SFT2 SUB2 .Screen/x DEO2
+		.Screen/y DEI2 #0008 ADD2 .Screen/y DEO2
+		,&h LDR							( ws: h )
+		,&cy LDR INC DUP ,&cy STR		( ws: h cy )
+		GTHk							( ws: h cy res )
+		ROT ROT POP2					( ws: res )
+		,&loop-y JCN					( ws: )
+RTN
+&cx $1 &cy $1 &w $1 &h $1 &color $1
+
+
+@draw-background ( -- )
+	;tile-background .Screen/addr DEO2
+
+	.Screen/height DEI2 WALL-MARGIN SUB2
+	WALL-MARGIN
+	&loop-y
+		DUP2 .Screen/y DEO2
+		;draw-background-row JSR2
+		#0008 ADD2
+		GTH2k
+		,&loop-y JCN
+	POP2 POP2
+RTN
+
+
+@draw-background-row ( -- )
+	.Screen/width DEI2 WALL-MARGIN SUB2 WALL-MARGIN	( set limit and initial x )
+	&loop-x
+		DUP2 .Screen/x DEO2							( set x coord )
+		#03 .Screen/sprite DEO						( draw 1bpp sprite )
+		#0008 ADD2									( increment x )
+		GTH2k										( is width greater than x )
+		,&loop-x JCN								( jump is x is less than limit )
+	POP2 POP2
+RTN
+
+
+@tile-background 1122 4488 1122 4488
+
+
+@paddle
+	3f 7f e7 c3 c3 c3 c3 c3  00 00 18 3c 3c 3c 3c 3c
+	fc fe ff ff ff ff ff ff  00 00 00 00 00 00 06 06
+	c3 c3 c3 c3 e7 ff ff ff  3c 3c 3c 3c 18 00 00 00
+	ff ff ff ff ff ff ff ff  06 06 06 06 06 06 06 06
+	ff ff ff ff ff ff 7f 3f  00 00 00 00 00 00 00 00
+	ff ff ff ff ff ff fe fc  06 06 06 06 06 1e 3c 00
+
+
+@ball-sprite
+	03 0f 1f 39 70 70 f9 ff  00 00 00 06 0f 0f 06 00
+	c0 f0 f8 fc fe fe ff ff  00 00 00 00 08 0c 06 06
+	ff ff 7f 7f 3f 1f 0f 03  00 00 00 00 18 0f 01 00
+	ff ff fe fe fc f8 f0 c0  06 06 0c 1c 38 f0 c0 00

@@ -1,0 +1,71 @@
+( controller, day 3 )
+
+include macros.tal
+
+( devices )
+|00 @System  [ &vector $2 &pad $6   &r $2 &g $2 &b $2 ]
+|10 @Console    &vector $2 &read    $1 &pad    $5 &write $1 
+|20 @Screen  [ &vector $2 &width    $2 &height $2 &pad   $2 &x $2 &y $2 &addr $2 &pixel $1 &sprite ]
+|80 @Controller [ &vector $2 &button   $1 &key    $1 ]
+
+( main program )
+|0100 
+	( set system colors )
+	#2ce9 .System/r DEO2
+	#01c0 .System/g DEO2
+	#2ce5 .System/b DEO2
+
+	( assign controller vector )
+	;on-controller .Controller/vector DEO2
+
+	( set initial x,y coordinates )
+	#0008 .Screen/x DEO2
+	#0008 .Screen/y DEO2
+	( set sprite address )
+	;square .Screen/addr DEO2
+BRK
+
+@on-controller ( -> )
+	.Controller/button DEI DUP	( read and dup key )
+	#01 AND 					( isolates bit 0, ctrl )
+	,&fill JCN					( if true, jump to fill, otherwise continue )
+
+	&outline
+		#01 .Screen/sprite DEO
+		,&check-arrows JMP		( continue to check-arrows )
+
+	&fill
+		#04 .Screen/sprite DEO	( draw filled )
+
+	&check-arrows
+		( uses button byte from stack )
+		DUP #10 AND 			( isolate bit 4, up )
+			,&up JCN
+		DUP #20 AND 			( isolate bit 5, down )
+			,&down JCN
+		DUP #40 AND 			( isolate bit 6, left )
+			,&left JCN
+		DUP #80 AND 			( isolate bit 7, right )
+			,&right JCN
+		POP
+	BRK
+
+%INCREMENT { DUP DEI2 #0008 ADD2 DEO2 }
+%DECREMENT { DUP DEI2 #0008 SUB2 DEO2 }
+
+	&up
+		.Screen/y DEI2 #0008 SUB2 .Screen/y DEO2 ( decrement y )
+	POP BRK
+	&down
+		.Screen/y INCREMENT ( increment y )
+		.Screen/y DEBUG
+	POP BRK
+	&left
+		.Screen/x DEI2 #0008 SUB2 .Screen/x DEO2 ( decrement x )
+	POP BRK
+	&right
+		.Screen/x INCREMENT ( increment x )
+	POP BRK
+BRK
+
+@square ff81 8181 8181 81ff

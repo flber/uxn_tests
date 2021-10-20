@@ -1,0 +1,89 @@
+( sprite, day 2 )
+
+
+( devices )
+|00 @System  [ &vector $2  &pad $6    &r $2       &g $2    &b $2 ]
+|20 @Screen  [ &vector $2  &width $2  &height $2  &pad $2  &x $2  &y $2  &addr $2  &pixel $1  &sprite $1 ]
+
+
+( macros )
+%HALF	{ #01 SFT }												( number -- number/2 )
+%HALF2	{ #01 SFT2 }											( number -- number/2 )
+%INIT-X { .Screen/width DEI2 HALF2 #0016 SUB2 .Screen/x DEO2 }	( -- )
+%INIT-Y { .Screen/height DEI2 HALF2 #0016 SUB2 .Screen/y DEO2 }	( -- )
+%cADD-X { .Screen/x DEI2 #000c ADD2 .Screen/x DEO2 } 			( -- )
+%cADD-Y { .Screen/y DEI2 #000c ADD2 .Screen/y DEO2 } 			( -- )
+( for the 1bpp sprites )
+( %8ADD-X { .Screen/x DEI2 #0008 ADD2 .Screen/x DEO2 } ) ( -- )
+( %8ADD-Y { .Screen/y DEI2 #0008 ADD2 .Screen/y DEO2 } ) ( -- )
+
+
+( main )
+|0100
+	( system colors )
+	#2ce9 .System/r DEO2
+	#01c0 .System/g DEO2
+	#2ce5 .System/b DEO2
+
+	( set  x,y coordinates )
+	INIT-X INIT-Y
+	
+	( sprite address )
+	;fancy-square .Screen/addr DEO2
+
+	#80 .Screen/sprite DEO cADD-X
+	#81 .Screen/sprite DEO cADD-X
+	#82 .Screen/sprite DEO cADD-X
+	#83 .Screen/sprite DEO cADD-Y
+
+	INIT-X
+	#94 .Screen/sprite DEO cADD-X
+	#95 .Screen/sprite DEO cADD-X
+	#96 .Screen/sprite DEO cADD-X
+	#97 .Screen/sprite DEO cADD-Y
+
+	INIT-X
+	#a8 .Screen/sprite DEO cADD-X
+	#a9 .Screen/sprite DEO cADD-X
+	#aa .Screen/sprite DEO cADD-X
+	#ab .Screen/sprite DEO cADD-Y
+
+	INIT-X
+	#bc .Screen/sprite DEO cADD-X
+	#bd .Screen/sprite DEO cADD-X
+	#be .Screen/sprite DEO cADD-X
+	#bf .Screen/sprite DEO 
+
+	( 1bpp sprites )
+	( 
+	#00 .Screen/sprite DEO 8ADD-X
+	#01 .Screen/sprite DEO 8ADD-X
+	#02 .Screen/sprite DEO 8ADD-X
+	#03 .Screen/sprite DEO 8ADD-Y
+
+	INIT-X
+	#04 .Screen/sprite DEO 8ADD-X
+	#05 .Screen/sprite DEO 8ADD-X
+	#06 .Screen/sprite DEO 8ADD-X
+	#07 .Screen/sprite DEO 8ADD-Y
+
+	INIT-X
+	#08 .Screen/sprite DEO 8ADD-X
+	#09 .Screen/sprite DEO 8ADD-X
+	#0a .Screen/sprite DEO 8ADD-X
+	#0b .Screen/sprite DEO 8ADD-Y
+
+	INIT-X
+	#0c .Screen/sprite DEO 8ADD-X
+	#0d .Screen/sprite DEO 8ADD-X
+	#0e .Screen/sprite DEO 8ADD-X
+	#0f .Screen/sprite DEO
+	 )
+
+BRK
+
+@square ff81 8181 8181 81ff
+@fancy-square  017f 7b73 6343 7fff     007c 7c7c 7c7c 0000
+@rock 3c4e 9ffd f962 3c00 
+@character 3c7e 5a7f 1b3c 5a18 
+

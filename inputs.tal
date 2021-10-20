@@ -1,0 +1,51 @@
+( inputs, day 3 )
+
+
+( devices )
+|00 @System  [ &vector $2 &pad $6   &r $2 &g $2 &b $2 ]
+|20 @Screen  [ &vector $2 &width $2 &height $2 &pad   $2 &x $2 &y $2 &addr $2 &pixel $1 &sprite $1 ]
+|80 @Controller [ &vector $2 &button   $1 &key    $1 ]
+
+
+( main )
+|0100
+	( set system colors )
+	#2ce9 .System/r DEO2
+	#01c0 .System/g DEO2
+	#2ce5 .System/b DEO2
+
+	( assign control vector )
+	;on-controller .Controller/vector DEO2
+BRK
+
+
+( run when key changes state )
+@on-controller ( -> )
+	#0008 .Screen/x DEO2
+	#0008 .Screen/y DEO2
+	;square .Screen/addr DEO2
+
+	.Controller/key DEI ( read key )
+	
+	DUP LIT '1 EQU
+		,&color-1 JCN
+	DUP LIT '2 EQU
+		,&color-2 JCN
+	DUP LIT '3 EQU
+		,&color-3 JCN
+	POP BRK
+
+	&color-1		
+		#01 .Screen/sprite DEO
+	POP BRK
+
+	&color-2		
+		#02 .Screen/sprite DEO
+	POP BRK
+
+	&color-3		
+		#03 .Screen/sprite DEO
+	POP BRK
+BRK
+
+@square ff81 8181 8181 81ff

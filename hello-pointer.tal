@@ -1,0 +1,92 @@
+( hello-pointer, day 5 )
+
+
+( devices )
+|00 @System  [ &vector $2 &pad $6  &r $2 &g $2 &b $2 ]
+|20 @Screen  [ &vector $2 &width $2 &height $2 &pad  $2 &x $2 &y $2 &addr $2 &pixel $1 &sprite $1 ]
+|90 @Mouse [ &vector $2 &x $2 &y $2 &state $1 &wheel $1 ]
+
+
+( macros )
+%RTN { JMP2r }
+%HALF2 { #01 SFT2 } 	( shift one bit to the right ) ( short -- short/2 )
+
+
+( zero page )
+|0000
+	@pointer [ &x $2 &y $2 ]
+
+
+( init )
+|0100
+	( set system colors )
+	#2ce9 .System/r DEO2
+	#01c0 .System/g DEO2
+	#2ce5 .System/b DEO2
+
+	( set vectors )
+	;on-mouse .Mouse/vector DEO2
+	;on-frame .Screen/vector DEO2
+
+
+	( set sprite address )
+	;pointer-icn .Screen/addr DEO2
+BRK
+
+
+@on-frame ( -- )
+	#0008 ( push initial x )
+	.Screen/height DEI2 HALF2 ( push y )
+	#ff ( push length of line )
+	;draw-horizontal-line JSR2 ( call subroutine )
+BRK
+
+
+@on-mouse ( -> )
+	;draw-pointer JSR2
+BRK
+
+
+@draw-pointer ( -- )
+	.pointer/x LDZ2 .Screen/x DEO2
+	.pointer/y LDZ2 .Screen/y DEO2
+
+	( clear sprite )
+	#40 .Screen/sprite DEO
+
+	( update pointer )
+	.Mouse/x DEI2 .pointer/x STZ2
+	.Mouse/y DEI2 .pointer/y STZ2
+
+	( send position and draw pointer to screen )
+	.pointer/x LDZ2 .Screen/x DEO2
+	.pointer/y LDZ2 .Screen/y DEO2
+	#4a .Screen/sprite DEO
+RTN
+
+
+@draw-horizontal-line ( x^ y^ length -- )
+	STH	( store length in return stack )
+
+	( set initial coordinates )
+	.Screen/y DEO2
+	.Screen/x DEO2
+
+	( retrieve length from return stack )
+	STHr
+
+	( initialize count )
+	#00
+
+	&loop
+		STH2								( stash length and count )
+		#02 .Screen/pixel DEO				( draw pixel )
+		.Screen/x DEI2 INC2 .Screen/x DEO2	( incr x )
+		STH2r INC							( retrieve length and count, incr count )
+		NEQk ,&loop JCN					( dup length & count, compare, jump )
+	POP2
+RTN
+		
+
+
+@pointer-icn [ 80c0 e0f0 f8e0 1000 ]
